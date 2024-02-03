@@ -1,18 +1,21 @@
-const puppeteer = require('puppeteer');
-const { CronJob } = require('cron');
-const readlineSync = require('readline-sync');
-require('colors');
+const puppeteer = require("puppeteer");
+const { CronJob } = require("cron");
+const readlineSync = require("readline-sync");
+const fs = require("fs");
+require("colors");
+
+const addressFilePath = "./wallet_address.txt";
 
 function checkWebsite(address, callback) {
   puppeteer
     .launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
     })
     .then((browser) => {
       browser.newPage().then((page) => {
-        page.goto('https://artio.faucet.berachain.com/').then(() => {
-          const termsCheckboxSelector = '#terms';
+        page.goto("https://artio.faucet.berachain.com/").then(() => {
+          const termsCheckboxSelector = "#terms";
           page.waitForSelector(termsCheckboxSelector).then(() => {
             page.click(termsCheckboxSelector).then(() => {
               const agreeButtonSelector =
@@ -22,11 +25,11 @@ function checkWebsite(address, callback) {
                   if (agreeButtons.length > 0) {
                     agreeButtons[0].click().then(() => {
                       const addressInputSelector =
-                        'body > div:nth-child(12) > div.relative.flex.min-h-screen.w-full.flex-col.overflow-hidden.bg-background > main > div > div.flex.w-full.flex-col-reverse.items-center.justify-between.py-12.xl\\:flex-row > div > div.flex.flex-col.gap-1 > div.relative > div > input';
+                        "body > div:nth-child(12) > div.relative.flex.min-h-screen.w-full.flex-col.overflow-hidden.bg-background > main > div > div.flex.w-full.flex-col-reverse.items-center.justify-between.py-12.xl\\:flex-row > div > div.flex.flex-col.gap-1 > div.relative > div > input";
                       page.waitForSelector(addressInputSelector).then(() => {
                         page.type(addressInputSelector, address).then(() => {
                           const buttonSelector =
-                            'body > div:nth-child(12) > div.relative.flex.min-h-screen.w-full.flex-col.overflow-hidden.bg-background > main > div > div.flex.w-full.flex-col-reverse.items-center.justify-between.py-12.xl\\:flex-row > div > button';
+                            "body > div:nth-child(12) > div.relative.flex.min-h-screen.w-full.flex-col.overflow-hidden.bg-background > main > div > div.flex.w-full.flex-col-reverse.items-center.justify-between.py-12.xl\\:flex-row > div > button";
                           page.waitForSelector(buttonSelector).then(() => {
                             page.click(buttonSelector).then(() => {
                               page.waitForTimeout(3000).then(() => {
@@ -49,11 +52,11 @@ function checkWebsite(address, callback) {
                                               )
                                               .then((errorMessage) => {
                                                 console.log(
-                                                  'Error: '.red +
+                                                  "Error: ".red +
                                                     errorMessage.red
                                                 );
                                                 browser.close();
-                                                callback('error');
+                                                callback("error");
                                               });
                                           } else {
                                             page
@@ -69,22 +72,22 @@ function checkWebsite(address, callback) {
                                                     )
                                                     .then((successMessage) => {
                                                       console.log(
-                                                        'Success: '.green +
+                                                        "Success: ".green +
                                                           successMessage.green
                                                       );
                                                       browser.close();
-                                                      callback('success');
+                                                      callback("success");
                                                     });
                                                 } else {
                                                   browser.close();
-                                                  callback('none');
+                                                  callback("none");
                                                 }
                                               });
                                           }
                                         })
                                         .catch(() => {
                                           browser.close();
-                                          callback('none');
+                                          callback("none");
                                         });
                                     });
                                 });
@@ -105,22 +108,24 @@ function checkWebsite(address, callback) {
 }
 
 function scheduleCronJob(address) {
-  const job = new CronJob('0 */8 * * *', () => {
-    console.log('Running cron job'.yellow);
+  const job = new CronJob("0 */8 * * *", () => {
+    console.log("Running cron job".yellow);
     checkWebsite(address, (status) => {
-      console.log('Status:'.yellow, status.yellow);
+      console.log("Status:".yellow, status.yellow);
     });
   });
 
   job.start();
-  console.log('Cron job scheduled'.blue);
+  console.log("Cron job scheduled".blue);
 }
 
-const address = readlineSync.question('Enter the wallet address: '.cyan);
+// Read the contents of the file
+const address = fs.readFileSync(addressFilePath, "utf-8").trim();
 
 checkWebsite(address, (status) => {
-  console.log('Initial status:'.cyan, status.cyan);
-  if (status !== 'none') {
+  console.log("Wallet address:", address);
+  console.log("Initial status:".cyan, status.cyan);
+  if (status !== "none") {
     scheduleCronJob(address);
   }
 });
